@@ -159,12 +159,17 @@ bool Mainloop::_rewrite_video_stream_info(const mavlink_message_t *msg, mavlink_
 {
     mavlink_video_stream_information_t video_info;
     mavlink_msg_video_stream_information_decode(msg, &video_info);
+    log_error("Original video stream URI: %s", video_info.uri);
 
     if (!_video_stream_uri.empty()) {
         strncpy((char*)video_info.uri, _video_stream_uri.c_str(), sizeof(video_info.uri) - 1);
         video_info.uri[sizeof(video_info.uri) - 1] = '\0';
         
-        log_debug("Rewriting video stream URI to: %s", _video_stream_uri.c_str());
+        log_error("Rewriting video stream URI to: %s", _video_stream_uri.c_str());
+
+        log_error("Stream info - type: %d, flags: %d",
+                  (int) video_info.type,
+                  (int) video_info.flags);
 
         mavlink_msg_video_stream_information_encode(msg->sysid, msg->compid, new_msg, &video_info);
         return true;
@@ -207,9 +212,9 @@ bool Mainloop::_rewrite_message(const struct buffer *buffer, struct buffer **new
                     (*new_buffer)->len = mavlink_msg_to_send_buffer((*new_buffer)->data, &new_msg);
 
                     // Copy over the message metadata
-                    (*new_buffer)->curr = buffer->curr;  // Add this line
+                    (*new_buffer)->curr = buffer->curr;
                     // Update the message ID in the metadata
-                    (*new_buffer)->curr.msg_id = MAVLINK_MSG_ID_VIDEO_STREAM_INFORMATION;  // Add this line
+                    (*new_buffer)->curr.msg_id = MAVLINK_MSG_ID_VIDEO_STREAM_INFORMATION;
 
                     return true;
                 }
