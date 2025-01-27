@@ -162,9 +162,11 @@ bool Mainloop::_rewrite_video_stream_info(const mavlink_message_t *msg, mavlink_
     log_error("Original video stream URI: %s", video_info.uri);
 
     if (!_video_stream_uri.empty()) {
+
+        // Only modify the URI field
+        memset(video_info.uri, 0, sizeof(video_info.uri));  // Zero the entire field first
         strncpy((char*)video_info.uri, _video_stream_uri.c_str(), sizeof(video_info.uri) - 1);
-        video_info.uri[sizeof(video_info.uri) - 1] = '\0';
-        
+        video_info.uri[sizeof(video_info.uri) - 1] = '\0';  // Ensure null termination
         log_error("Rewriting video stream URI to: %s", _video_stream_uri.c_str());
 
         log_error("Stream info - type: %d, flags: %d",
@@ -172,6 +174,8 @@ bool Mainloop::_rewrite_video_stream_info(const mavlink_message_t *msg, mavlink_
                   (int) video_info.flags);
 
         mavlink_msg_video_stream_information_encode(msg->sysid, msg->compid, new_msg, &video_info);
+        log_error("New message checksum: 0x%04x", new_msg->checksum);
+
         return true;
     }
     
