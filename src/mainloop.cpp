@@ -182,7 +182,6 @@ bool Mainloop::_rewrite_message(const struct buffer *buffer, struct buffer **new
     // Parse the message
     for (unsigned i = 0; i < buffer->len; i++) {
         if (mavlink_parse_char(MAVLINK_COMM_0, buffer->data[i], &msg, &status)) {
-            //log_error("MAVLINK MSG_ID: %d", (int) msg.msgid);
             // Check if this is a message we want to rewrite
             if (msg.msgid == MAVLINK_MSG_ID_VIDEO_STREAM_INFORMATION) {
                 log_error("MAVLINK_MSG_ID_VIDEO_STREAM_INFORMATION..... 1");
@@ -206,6 +205,12 @@ bool Mainloop::_rewrite_message(const struct buffer *buffer, struct buffer **new
                     log_error("_rewrite_video_stream_info : OK");
                     // Pack the modified message
                     (*new_buffer)->len = mavlink_msg_to_send_buffer((*new_buffer)->data, &new_msg);
+
+                    // Copy over the message metadata
+                    (*new_buffer)->curr = buffer->curr;  // Add this line
+                    // Update the message ID in the metadata
+                    (*new_buffer)->curr.msg_id = MAVLINK_MSG_ID_VIDEO_STREAM_INFORMATION;  // Add this line
+
                     return true;
                 }
                 log_error("_rewrite_video_stream_info : FAILED");
