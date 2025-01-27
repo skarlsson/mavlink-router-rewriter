@@ -203,11 +203,12 @@ bool Mainloop::_rewrite_message(const struct buffer *buffer, struct buffer **new
 
                 mavlink_message_t new_msg;
                 if (_rewrite_video_stream_info(&msg, &new_msg)) {
+                    log_error("_rewrite_video_stream_info : OK");
                     // Pack the modified message
                     (*new_buffer)->len = mavlink_msg_to_send_buffer((*new_buffer)->data, &new_msg);
                     return true;
                 }
-
+                log_error("_rewrite_video_stream_info : FAILED");
                 // If rewrite failed, free allocated memory
                 free((*new_buffer)->data);
                 free(*new_buffer);
