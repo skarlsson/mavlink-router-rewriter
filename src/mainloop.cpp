@@ -159,6 +159,7 @@ bool Mainloop::_rewrite_video_stream_info(const mavlink_message_t *msg, mavlink_
 {
     mavlink_video_stream_information_t video_info;
     mavlink_msg_video_stream_information_decode(msg, &video_info);
+    log_error("Original message checksum: 0x%04x", msg->checksum);
     log_error("Original video stream URI: %s", video_info.uri);
 
     if (!_video_stream_uri.empty()) {
