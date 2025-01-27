@@ -515,7 +515,7 @@ static int parse_confs(ConfFile &conffile, Configuration &config)
         }
         config.tcp_configs.push_back(opt_tcp);
     }
-
+    log_error("XXX = %s", config.video_stream_uri.c_str());
     return 0;
 }
 
