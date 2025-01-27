@@ -184,6 +184,7 @@ bool Mainloop::_rewrite_message(const struct buffer *buffer, struct buffer **new
         if (mavlink_parse_char(MAVLINK_COMM_0, buffer->data[i], &msg, &status)) {
             // Check if this is a message we want to rewrite
             if (msg.msgid == MAVLINK_MSG_ID_VIDEO_STREAM_INFORMATION) {
+                log_error("MAVLINK_MSG_ID_VIDEO_STREAM_INFORMATION..... 1");
                 // Only allocate new buffer when we know we need it
                 *new_buffer = (struct buffer *)malloc(sizeof(struct buffer));
                 if (!*new_buffer) {
