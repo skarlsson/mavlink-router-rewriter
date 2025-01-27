@@ -155,23 +155,93 @@ int Mainloop::write_msg(const std::shared_ptr<Endpoint> &e, const struct buffer 
     return r;
 }
 
+bool Mainloop::_rewrite_video_stream_info(const mavlink_message_t *msg, mavlink_message_t *new_msg)
+{
+    mavlink_video_stream_information_t video_info;
+    mavlink_msg_video_stream_information_decode(msg, &video_info);
+
+    if (!_video_stream_uri.empty()) {
+        strncpy((char*)video_info.uri, _video_stream_uri.c_str(), sizeof(video_info.uri) - 1);
+        video_info.uri[sizeof(video_info.uri) - 1] = '\0';
+        
+        log_debug("Rewriting video stream URI to: %s", _video_stream_uri.c_str());
+
+        mavlink_msg_video_stream_information_encode(msg->sysid, msg->compid, new_msg, &video_info);
+        return true;
+    }
+    
+    *new_msg = *msg;
+    return false;
+}
+
+bool Mainloop::_rewrite_message(const struct buffer *buffer, struct buffer **new_buffer)
+{
+    mavlink_message_t msg;
+    mavlink_status_t status;
+
+    // Parse the message
+    for (unsigned i = 0; i < buffer->len; i++) {
+        if (mavlink_parse_char(MAVLINK_COMM_0, buffer->data[i], &msg, &status)) {
+            // Check if this is a message we want to rewrite
+            if (msg.msgid == MAVLINK_MSG_ID_VIDEO_STREAM_INFORMATION) {
+                // Only allocate new buffer when we know we need it
+                *new_buffer = (struct buffer *)malloc(sizeof(struct buffer));
+                if (!*new_buffer) {
+                    log_error("Could not allocate memory for message rewrite buffer");
+                    return false;
+                }
+
+                (*new_buffer)->data = (uint8_t *)malloc(MAVLINK_MAX_PACKET_LEN);
+                if (!(*new_buffer)->data) {
+                    log_error("Could not allocate memory for message data buffer");
+                    free(*new_buffer);
+                    *new_buffer = nullptr;
+                    return false;
+                }
+
+                mavlink_message_t new_msg;
+                if (_rewrite_video_stream_info(&msg, &new_msg)) {
+                    // Pack the modified message
+                    (*new_buffer)->len = mavlink_msg_to_send_buffer((*new_buffer)->data, &new_msg);
+                    return true;
+                }
+
+                // If rewrite failed, free allocated memory
+                free((*new_buffer)->data);
+                free(*new_buffer);
+                *new_buffer = nullptr;
+            }
+        }
+    }
+
+    return false;
+}
+
+
 void Mainloop::route_msg(struct buffer *buf)
 {
     bool unknown = true;
+    struct buffer *new_buf = nullptr;
+
+    // Try to rewrite the message if needed
+    bool was_rewritten = _rewrite_message(buf, &new_buf);
+
+    // Use the rewritten buffer if message was rewritten, otherwise use original
+    struct buffer *msg_buf = was_rewritten ? new_buf : buf;
 
     for (const auto &e : this->g_endpoints) {
-        auto acceptState = e->accept_msg(buf);
+        auto acceptState = e->accept_msg(msg_buf);
 
         switch (acceptState) {
         case Endpoint::AcceptState::Accepted:
             log_trace("Endpoint [%d] accepted message %u to %d/%d from %u/%u",
                       e->fd,
-                      buf->curr.msg_id,
-                      buf->curr.target_sysid,
-                      buf->curr.target_compid,
-                      buf->curr.src_sysid,
-                      buf->curr.src_compid);
-            if (write_msg(e, buf) == -EPIPE) { // only TCP endpoints should return -EPIPE
+                      msg_buf->curr.msg_id,
+                      msg_buf->curr.target_sysid,
+                      msg_buf->curr.target_compid,
+                      msg_buf->curr.src_sysid,
+                      msg_buf->curr.src_compid);
+            if (write_msg(e, msg_buf) == -EPIPE) {
                 should_process_tcp_hangups = true;
             }
             unknown = false;
@@ -179,26 +249,32 @@ void Mainloop::route_msg(struct buffer *buf)
         case Endpoint::AcceptState::Filtered:
             log_trace("Endpoint [%d] filtered out message %u to %d/%d from %u/%u",
                       e->fd,
-                      buf->curr.msg_id,
-                      buf->curr.target_sysid,
-                      buf->curr.target_compid,
-                      buf->curr.src_sysid,
-                      buf->curr.src_compid);
+                      msg_buf->curr.msg_id,
+                      msg_buf->curr.target_sysid,
+                      msg_buf->curr.target_compid,
+                      msg_buf->curr.src_sysid,
+                      msg_buf->curr.src_compid);
             unknown = false;
             break;
         case Endpoint::AcceptState::Rejected:
             // fall through
         default:
-            break; // do nothing (will count as unknown)
+            break;
         }
     }
 
     if (unknown) {
         _errors_aggregate.msg_to_unknown++;
         log_trace("Message %u to unknown sysid/compid: %d/%d",
-                  buf->curr.msg_id,
-                  buf->curr.target_sysid,
-                  buf->curr.target_compid);
+                  msg_buf->curr.msg_id,
+                  msg_buf->curr.target_sysid,
+                  msg_buf->curr.target_compid);
+    }
+
+    // Free the allocated buffer if we created one
+    if (new_buf) {
+        free(new_buf->data);
+        free(new_buf);
     }
 }
 
@@ -361,6 +437,8 @@ bool Mainloop::dedup_check_msg(const buffer *buf)
 
 bool Mainloop::add_endpoints(const Configuration &config)
 {
+    _video_stream_uri = config.video_stream_uri;
+    
     // Create UART and UDP endpoints
     if (config.sniffer_sysid != 0) {
         Endpoint::sniffer_sysid = config.sniffer_sysid;

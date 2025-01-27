@@ -44,6 +44,7 @@ struct Configuration {
     std::vector<UdpEndpointConfig> udp_configs;
     std::vector<TcpEndpointConfig> tcp_configs;
     unsigned long sniffer_sysid;
+    std::string video_stream_uri;
 };
 
 struct endpoint_entry {
@@ -108,7 +109,9 @@ public:
     void request_exit(int retcode);
 
 private:
-    static const unsigned int LOG_AGGREGATE_INTERVAL_SEC = 5;
+    bool _rewrite_message(const struct buffer *buffer, struct buffer **new_buffer);
+    bool _rewrite_video_stream_info(const mavlink_message_t *msg, mavlink_message_t *new_msg);
+     static const unsigned int LOG_AGGREGATE_INTERVAL_SEC = 5;
 
     std::vector<std::shared_ptr<Endpoint>> g_endpoints{};
     int g_tcp_fd = -1; ///< for TCP server
@@ -128,6 +131,7 @@ private:
     void _del_timeouts();
     bool _retry_timeout_cb(void *data);
     bool _log_aggregate_timeout(void *data);
+    std::string _video_stream_uri;
 
     Mainloop() = default;
     Mainloop(const Mainloop &) = delete;

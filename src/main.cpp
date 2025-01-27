@@ -440,7 +440,8 @@ static int parse_confs(ConfFile &conffile, Configuration &config)
         {"ReportStats",         false, ConfFile::parse_bool,    OPTIONS_TABLE_STRUCT_FIELD(Configuration, report_msg_statistics)},
         {"DebugLogLevel",       false, parse_log_level,         OPTIONS_TABLE_STRUCT_FIELD(Configuration, debug_log_level)},
         {"DeduplicationPeriod", false, ConfFile::parse_ul,      OPTIONS_TABLE_STRUCT_FIELD(Configuration, dedup_period_ms)},
-        {"SnifferSysid",    false, ConfFile::parse_ul,      OPTIONS_TABLE_STRUCT_FIELD(Configuration, sniffer_sysid)},
+        {"SnifferSysid",        false, ConfFile::parse_ul,      OPTIONS_TABLE_STRUCT_FIELD(Configuration, sniffer_sysid)},
+        {"VideoStreamUri",      false, ConfFile::parse_stdstring, OPTIONS_TABLE_STRUCT_FIELD(Configuration, video_stream_uri)},
         {}
     };
     // clang-format on
