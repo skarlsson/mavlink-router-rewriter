@@ -182,6 +182,7 @@ bool Mainloop::_rewrite_message(const struct buffer *buffer, struct buffer **new
     // Parse the message
     for (unsigned i = 0; i < buffer->len; i++) {
         if (mavlink_parse_char(MAVLINK_COMM_0, buffer->data[i], &msg, &status)) {
+            log_error("MAVLINK MSG_ID: %d", (int) msg.msgid);
             // Check if this is a message we want to rewrite
             if (msg.msgid == MAVLINK_MSG_ID_VIDEO_STREAM_INFORMATION) {
                 log_error("MAVLINK_MSG_ID_VIDEO_STREAM_INFORMATION..... 1");
